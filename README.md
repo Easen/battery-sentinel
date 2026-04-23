@@ -33,15 +33,21 @@ Monitor and manage every battery-powered device in your Home Assistant installat
 - Room/area column sourced from the HA area registry
 - Sortable columns: name, level, or room
 - Resizable columns with widths saved across browser sessions
-- Inline alert threshold selector per row, no need to open the device panel
+- Inline alert threshold and battery type selectors per row — no need to open the device panel
 - Live filter box above the device list — type any part of a device name to narrow the list instantly
+- Battery Type column header filter — show only devices with a specific type, or find all unassigned devices at a glance
+- Column visibility controls in Settings — show or hide any column (Level, Battery Type, Alert Threshold, Notifications, Script, Room)
+
+### Bulk Edit
+- **Battery Type toolbar** — pick a type from the dropdown and apply it to all text-filtered devices at once; useful for tagging a whole category (e.g., all smoke detectors) in one step
+- **Alert Threshold toolbar** — same bulk-set pattern for thresholds; filter by name, pick a threshold, apply to all matching devices with one confirmation
 
 ### Per-device Management
 Click any device in the list to open its detail panel.
 
 - **Inline rename** — click the device name at the top of the panel to edit it; saving writes the new friendly name back to Home Assistant via the entity registry (entity ID is unchanged, so automations and dashboards are unaffected). Note: this renames the battery *entity* only, not the parent device — the device name in HA's device registry is separate and will not change
 - Battery type dropdown (AA, AAA, C, 9V, CR2032, CR2025, CR123A, CR2, 18650, or custom)
-- Per-device alert threshold (5% to 30%, or Ignore)
+- Per-device alert threshold (5% to 60% in 5% increments, or Ignore)
 - Notes field for free-text information about the device or its battery
 - Last replaced date, manually editable or stamped with the Replaced/Recharged Today button
 - Per-device notification controls: UI, Email, and Mobile toggles; email address override; mobile app service selector
@@ -111,6 +117,7 @@ sequence:
 ### Settings
 - All configuration through the built-in Settings tab; no YAML to edit
 - Battery type list is fully manageable: add or remove types
+- Column visibility card — checkboxes to show or hide each column in the device list; saved across browser sessions
 - Scan Now button for an immediate manual refresh
 - Card-based layout fills the screen on desktop, wraps on mobile
 
@@ -206,7 +213,7 @@ All configuration is done within the add-on UI. There is no YAML to edit.
 | Field | Description |
 |-------|-------------|
 | Battery type | Dropdown populated from your configured battery type list |
-| Alert threshold | Per-device override: 5% to 30% in 5% increments, or Ignore |
+| Alert threshold | Per-device override: 5% to 60% in 5% increments, or Ignore |
 | Notifications | UI, Email, and Mobile toggles for this device specifically |
 | Email address override | Sends this device's alerts to a specific address instead of the global default |
 | Mobile app | Select a `mobile_app_*` notify service to receive push notifications for this device |

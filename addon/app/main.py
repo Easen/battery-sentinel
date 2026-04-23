@@ -12,7 +12,7 @@ import storage
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 _LOGGER = logging.getLogger(__name__)
 
-VERSION = "2026.04.7"
+VERSION = "2026.04.8"
 
 _cache: list = []
 _startup_logged = False
@@ -354,8 +354,12 @@ def _build_html(base: str) -> str:
   .scan-bar {{ display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }}
   .scan-status {{ font-size: .82rem; color: #888; }}
 
-  .device-toolbar {{ padding: .5rem 1rem .25rem; }}
-  #device-search {{ max-width: 260px; padding: .35rem .6rem; font-size: .88rem; }}
+  .device-toolbar {{ padding: .5rem 1rem .25rem; display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }}
+  #device-search {{ max-width: 220px; padding: .35rem .6rem; font-size: .88rem; }}
+  .toolbar-label {{ font-size: .82rem; color: #888; white-space: nowrap; }}
+  .toolbar-sel {{ max-width: 150px; padding: .35rem .6rem; font-size: .88rem; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #e0e0e0; cursor: pointer; }}
+  .toolbar-sel:focus {{ outline: none; border-color: #58a6ff; }}
+  .toolbar-apply {{ white-space: nowrap; font-size: .82rem; padding: .35rem .75rem; }}
   .loading {{ color: #666; padding: 2rem; text-align: center; }}
   .error   {{ color: #f55; padding: 2rem; text-align: center; }}
 </style>
@@ -375,8 +379,35 @@ def _build_html(base: str) -> str:
 
 <div id="tab-devices" class="tab-content active">
   <div class="device-toolbar">
-    <input type="text" id="device-search" placeholder="Filter devices..." autocomplete="off">
+    <div style="position:relative;display:inline-flex;align-items:center">
+      <input type="text" id="device-search" placeholder="Filter devices..." autocomplete="off" style="padding-right:1.6rem">
+      <button id="search-clear" onclick="clearSearch()" title="Clear" style="display:none;position:absolute;right:5px;background:none;border:none;color:#666;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">&#x2715;</button>
+    </div>
+    <span class="toolbar-label">Battery Type:</span>
+    <select id="type-filter" class="toolbar-sel">
+      <option value="">-- Apply Type --</option>
+    </select>
+    <button id="apply-type-btn" class="btn btn-secondary toolbar-apply" style="display:none" onclick="applyTypeToVisible()"></button>
+    <span class="toolbar-label">Alert Threshold:</span>
+    <select id="threshold-filter" class="toolbar-sel">
+      <option value="">-- Set Threshold --</option>
+      <option value="5">5%</option>
+      <option value="10">10%</option>
+      <option value="15">15%</option>
+      <option value="20">20%</option>
+      <option value="25">25%</option>
+      <option value="30">30%</option>
+      <option value="35">35%</option>
+      <option value="40">40%</option>
+      <option value="45">45%</option>
+      <option value="50">50%</option>
+      <option value="55">55%</option>
+      <option value="60">60%</option>
+      <option value="-1">Ignore</option>
+    </select>
+    <button id="apply-threshold-btn" class="btn btn-secondary toolbar-apply" style="display:none" onclick="applyThresholdToVisible()"></button>
   </div>
+
   <div id="content"><p class="loading">Loading devices...</p></div>
 </div>
 
@@ -418,6 +449,12 @@ def _build_html(base: str) -> str:
           <option value="20">20%</option>
           <option value="25">25%</option>
           <option value="30">30%</option>
+          <option value="35">35%</option>
+          <option value="40">40%</option>
+          <option value="45">45%</option>
+          <option value="50">50%</option>
+          <option value="55">55%</option>
+          <option value="60">60%</option>
           <option value="-1">Ignore</option>
         </select>
       </div>
@@ -492,6 +529,17 @@ def _build_html(base: str) -> str:
       </div>
     </div>
 
+    <div class="settings-card">
+      <h3>Columns</h3>
+      <p class="muted" style="font-size:.82rem;margin-bottom:.85rem">Choose which columns appear in the device list. Device name is always shown.</p>
+      <div class="notify-row"><input type="checkbox" id="col-level"  onchange="toggleCol('level',  this.checked)"><label for="col-level">Level</label></div>
+      <div class="notify-row"><input type="checkbox" id="col-btype"  onchange="toggleCol('btype',  this.checked)"><label for="col-btype">Battery Type</label></div>
+      <div class="notify-row"><input type="checkbox" id="col-alert"  onchange="toggleCol('alert',  this.checked)"><label for="col-alert">Alert Threshold</label></div>
+      <div class="notify-row"><input type="checkbox" id="col-notify" onchange="toggleCol('notify', this.checked)"><label for="col-notify">Notifications (UI / Email / Mobile)</label></div>
+      <div class="notify-row"><input type="checkbox" id="col-script" onchange="toggleCol('script', this.checked)"><label for="col-script">Script</label></div>
+      <div class="notify-row"><input type="checkbox" id="col-area"   onchange="toggleCol('area',   this.checked)"><label for="col-area">Room</label></div>
+    </div>
+
   </div>
   <div class="settings-footer">
     <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
@@ -523,6 +571,12 @@ def _build_html(base: str) -> str:
             <option value="20">20%</option>
             <option value="25">25%</option>
             <option value="30">30%</option>
+            <option value="35">35%</option>
+            <option value="40">40%</option>
+            <option value="45">45%</option>
+            <option value="50">50%</option>
+            <option value="55">55%</option>
+            <option value="60">60%</option>
             <option value="-1">Ignore</option>
           </select>
         </div>
@@ -590,8 +644,13 @@ let _scripts        = [];
 let _sortCol        = "level";
 let _sortDir        = 1;
 let _activeEntity   = null;
-const _colDefaults  = {{ name: 22, level: 16, alert: 11, notify: 19, script: 16, area: 16 }};
-let _colWidths = Object.assign({{}}, _colDefaults, JSON.parse(localStorage.getItem('bs_colWidths_v4') || '{{}}'));
+const _colDefaults  = {{ name: 20, level: 13, btype: 12, alert: 10, notify: 18, script: 13, area: 14 }};
+let _colWidths = Object.assign({{}}, _colDefaults, JSON.parse(localStorage.getItem('bs_colWidths_v5') || '{{}}'));
+const _colVisDefaults = {{ level: true, btype: true, alert: true, notify: true, script: true, area: true }};
+let _colVisible = Object.assign({{}}, _colVisDefaults, JSON.parse(localStorage.getItem('bs_colVis_v1') || '{{}}'));
+let _typeFilter      = '';  // toolbar: battery type to apply in bulk
+let _thresholdApply  = '';  // toolbar: threshold to apply in bulk
+let _btypeFilter     = '';  // column header: filter display by type
 let _resizing    = null;
 let _wasDragging = false;
 
@@ -624,7 +683,7 @@ function stopResize() {{
   if (_resizing) {{
     document.querySelector(`.resize-handle[data-col="${{_resizing.col}}"]`)?.classList.remove("dragging");
     _resizing = null;
-    localStorage.setItem('bs_colWidths_v4', JSON.stringify(_colWidths));
+    localStorage.setItem('bs_colWidths_v5', JSON.stringify(_colWidths));
   }}
   document.removeEventListener("mousemove", onResize);
   document.removeEventListener("mouseup",   stopResize);
@@ -644,7 +703,7 @@ function sortKey(d, col) {{
   if (col === "name")  return d.name.toLowerCase();
   if (col === "area")  return (d.area || "zzz").toLowerCase();
   if (d.entity_id.startsWith("binary_sensor.")) return d.state === "on" ? 0 : 100;
-  const n = parseInt(d.state, 10);
+  const n = parseFloat(d.state);
   return isNaN(n) ? 999 : n;
 }}
 
@@ -654,34 +713,74 @@ function levelCell(d) {{
     return `<span class="pct ${{low ? 'critical' : 'ok'}}">${{low ? 'Low' : 'OK  '}}</span>
             <span class="bar-wrap"><span class="bar" style="width:100%;background:${{low?'#f55':'#4c4'}}"></span></span>`;
   }}
-  const pct = parseInt(d.state, 10);
+  const pct = parseFloat(d.state);
   const cls = pct < 10 ? "critical" : pct < 25 ? "warning" : "ok";
   const col = pct < 10 ? "#f55"     : pct < 25 ? "#fa0"    : "#4c4";
-  return `<span class="pct ${{cls}}">${{pct}}%</span>
-          <span class="bar-wrap"><span class="bar" style="width:${{pct}}%;background:${{col}}"></span></span>`;
+  return `<span class="pct ${{cls}}">${{Math.round(pct)}}%</span>
+          <span class="bar-wrap"><span class="bar" style="width:${{Math.min(pct,100)}}%;background:${{col}}"></span></span>`;
 }}
 
 // ── Devices table ─────────────────────────────────────────────────────
 function renderTable() {{
   const query = (document.getElementById("device-search")?.value || '').trim().toLowerCase();
-  const visible = query ? _devices.filter(d => d.name.toLowerCase().includes(query)) : _devices;
+  const typeF = _typeFilter;
+
+  // Text filter narrows by name; column btype filter narrows display further
+  const textFiltered = query ? _devices.filter(d => d.name.toLowerCase().includes(query)) : _devices;
+  let visible;
+  if (!_btypeFilter) {{
+    visible = textFiltered;
+  }} else if (_btypeFilter === '__unassigned__') {{
+    visible = textFiltered.filter(d => !d.battery_type);
+  }} else {{
+    visible = textFiltered.filter(d => d.battery_type === _btypeFilter);
+  }}
+
+  // Toolbar apply buttons — count from text filter only
+  const applyBtn = document.getElementById("apply-type-btn");
+  if (applyBtn) {{
+    if (typeF) {{
+      const cnt = textFiltered.length;
+      applyBtn.textContent = `Apply "${{typeF}}" to ${{cnt}} device${{cnt !== 1 ? 's' : ''}}`;
+      applyBtn.style.display = '';
+    }} else {{
+      applyBtn.style.display = 'none';
+    }}
+  }}
+  const thrApplyBtn = document.getElementById("apply-threshold-btn");
+  if (thrApplyBtn) {{
+    if (_thresholdApply) {{
+      const cnt = textFiltered.length;
+      const label = _thresholdApply === '-1' ? 'Ignore' : `${{_thresholdApply}}%`;
+      thrApplyBtn.textContent = `Set ${{label}} for ${{cnt}} device${{cnt !== 1 ? 's' : ''}}`;
+      thrApplyBtn.style.display = '';
+    }} else {{
+      thrApplyBtn.style.display = 'none';
+    }}
+  }}
+
   const sorted = [...visible].sort((a, b) => {{
     const ka = sortKey(a, _sortCol), kb = sortKey(b, _sortCol);
     return ka < kb ? -_sortDir : ka > kb ? _sortDir : 0;
   }});
 
-  const thCls = col => _sortCol === col ? (_sortDir === 1 ? "sort-asc" : "sort-desc") : "";
+  const thCls = col => _sortCol === col ? (_sortDir === 1 ? "sort-asc" : "sort-desc") : '';
   const arrow = col => _sortCol === col ? `<span class="sort-arrow">${{_sortDir===1?'▲':'▼'}}</span>` : '';
+  const v = _colVisible;
+  const types = _settings.battery_types || [];
 
-  const thrOptions = v => [5,10,15,20,25,30].map(n =>
-    `<option value="${{n}}"${{v===n?' selected':''}}>${{n}}%</option>`
-  ).join('') + `<option value="-1"${{v===-1?' selected':''}}>Ignore</option>`;
+  const thrOptions = val => [5,10,15,20,25,30,35,40,45,50,55,60].map(n =>
+    `<option value="${{n}}"${{val===n?' selected':''}}>${{n}}%</option>`
+  ).join('') + `<option value="-1"${{val===-1?' selected':''}}>Ignore</option>`;
+
+  const typeOptions = val => '<option value="">—</option>' +
+    types.map(t => `<option value="${{t}}"${{val===t?' selected':''}}>${{t}}</option>`).join('');
 
   const rows = sorted.map(d => {{
-    const ignored = d.alert_threshold === -1;
-    const dim = ignored ? ' style="opacity:.4"' : '';
+    const ignored  = d.alert_threshold === -1;
+    const dim      = ignored ? ' style="opacity:.4"' : '';
     const isBinary = d.entity_id.startsWith("binary_sensor.");
-    const thrCell = isBinary
+    const thrCell  = isBinary
       ? `<option value="15"${{d.alert_threshold !== -1 ? ' selected' : ''}}>Monitor</option>
          <option value="-1"${{d.alert_threshold === -1 ? ' selected' : ''}}>Ignore</option>`
       : thrOptions(d.alert_threshold);
@@ -695,43 +794,52 @@ function renderTable() {{
     }})();
     return `<tr class="device-row" data-eid="${{d.entity_id}}"${{dim}}>
       <td>${{d.name}}</td>
-      <td>${{levelCell(d)}}</td>
-      <td onclick="event.stopPropagation()">
-        <select class="inline-select" data-eid="${{d.entity_id}}">
-          ${{thrCell}}
-        </select>
-      </td>
-      <td onclick="event.stopPropagation()">
+      ${{v.level  ? `<td>${{levelCell(d)}}</td>` : ''}}
+      ${{v.btype  ? `<td onclick="event.stopPropagation()"><select class="inline-select" data-eid="${{d.entity_id}}" data-field="battery_type">${{typeOptions(d.battery_type||'')}}</select></td>` : ''}}
+      ${{v.alert  ? `<td onclick="event.stopPropagation()"><select class="inline-select" data-eid="${{d.entity_id}}">${{thrCell}}</select></td>` : ''}}
+      ${{v.notify ? `<td onclick="event.stopPropagation()">
         <label class="notify-check"><input type="checkbox" data-eid="${{d.entity_id}}" data-field="notify_bell" ${{d.notify_bell !== false ? 'checked' : ''}}> UI</label>
         <label class="notify-check"><input type="checkbox" data-eid="${{d.entity_id}}" data-field="notify_email" ${{d.notify_email !== false ? 'checked' : ''}}> Email</label>
         <label class="notify-check"><input type="checkbox" data-eid="${{d.entity_id}}" data-field="notify_mobile" ${{d.notify_mobile ? 'checked' : ''}}> Mobile</label>
-      </td>
-      <td>${{scriptLabel}}</td>
-      <td class="muted">${{d.area || ''}}</td>
+      </td>` : ''}}
+      ${{v.script ? `<td>${{scriptLabel}}</td>` : ''}}
+      ${{v.area   ? `<td class="muted">${{d.area || ''}}</td>` : ''}}
     </tr>`;
-  }}).join("");
+  }}).join('');
+
+  const cg = [
+    `<col data-col="name"  style="width:${{_colWidths.name}}%">`,
+    v.level  && `<col data-col="level"  style="width:${{_colWidths.level}}%">`,
+    v.btype  && `<col data-col="btype"  style="width:${{_colWidths.btype}}%">`,
+    v.alert  && `<col data-col="alert"  style="width:${{_colWidths.alert}}%">`,
+    v.notify && `<col data-col="notify" style="width:${{_colWidths.notify}}%">`,
+    v.script && `<col data-col="script" style="width:${{_colWidths.script}}%">`,
+    v.area   && `<col data-col="area"   style="width:${{_colWidths.area}}%">`,
+  ].filter(Boolean).join('');
+
+  const notifyHdr = v.notify ? `<th onclick="event.stopPropagation()">
+      <label class="notify-check"><input type="checkbox" id="hdr-notify_bell"> UI</label>
+      <label class="notify-check"><input type="checkbox" id="hdr-notify_email"> Email</label>
+      <label class="notify-check"><input type="checkbox" id="hdr-notify_mobile"> Mobile</label>
+      <span class="resize-handle" data-col="notify"></span>
+    </th>` : '';
 
   document.getElementById("content").innerHTML = `<table>
-    <colgroup>
-      <col data-col="name"   style="width:${{_colWidths.name}}%">
-      <col data-col="level"  style="width:${{_colWidths.level}}%">
-      <col data-col="alert"  style="width:${{_colWidths.alert}}%">
-      <col data-col="notify" style="width:${{_colWidths.notify}}%">
-      <col data-col="script" style="width:${{_colWidths.script}}%">
-      <col data-col="area"   style="width:${{_colWidths.area}}%">
-    </colgroup>
+    <colgroup>${{cg}}</colgroup>
     <thead><tr>
-      <th data-col="name"  class="${{thCls('name')}}">Device${{arrow('name')}}<span class="resize-handle" data-col="name"></span></th>
-      <th data-col="level" class="${{thCls('level')}}">Level${{arrow('level')}}<span class="resize-handle" data-col="level"></span></th>
-      <th>Alert Threshold<span class="resize-handle" data-col="alert"></span></th>
-      <th onclick="event.stopPropagation()">
-        <label class="notify-check"><input type="checkbox" id="hdr-notify_bell"> UI</label>
-        <label class="notify-check"><input type="checkbox" id="hdr-notify_email"> Email</label>
-        <label class="notify-check"><input type="checkbox" id="hdr-notify_mobile"> Mobile</label>
-        <span class="resize-handle" data-col="notify"></span>
-      </th>
-      <th>Script<span class="resize-handle" data-col="script"></span></th>
-      <th data-col="area"  class="${{thCls('area')}}">Room${{arrow('area')}}<span class="resize-handle" data-col="area"></span></th>
+      <th data-col="name" class="${{thCls('name')}}">Device${{arrow('name')}}<span class="resize-handle" data-col="name"></span></th>
+      ${{v.level  ? `<th data-col="level" class="${{thCls('level')}}">Level${{arrow('level')}}<span class="resize-handle" data-col="level"></span></th>` : ''}}
+      ${{v.btype  ? `<th onclick="event.stopPropagation()">Battery Type
+        <select class="inline-select" style="margin-left:.4rem;font-size:.75rem" onchange="setBtypeFilter(this.value)" onclick="event.stopPropagation()">
+          <option value="">All</option>
+          <option value="__unassigned__"${{_btypeFilter==='__unassigned__'?' selected':''}}>Unassigned</option>
+          ${{types.map(t=>`<option value="${{t}}"${{_btypeFilter===t?' selected':''}}>${{t}}</option>`).join('')}}
+        </select>
+        <span class="resize-handle" data-col="btype"></span></th>` : ''}}
+      ${{v.alert  ? `<th>Alert Threshold<span class="resize-handle" data-col="alert"></span></th>` : ''}}
+      ${{notifyHdr}}
+      ${{v.script ? `<th>Script<span class="resize-handle" data-col="script"></span></th>` : ''}}
+      ${{v.area   ? `<th data-col="area" class="${{thCls('area')}}">Room${{arrow('area')}}<span class="resize-handle" data-col="area"></span></th>` : ''}}
     </tr></thead>
     <tbody>${{rows}}</tbody>
   </table>`;
@@ -747,8 +855,8 @@ function renderTable() {{
   document.querySelectorAll(".device-row").forEach(row =>
     row.addEventListener("click", () => openModal(row.dataset.eid))
   );
-  document.querySelectorAll(".inline-select").forEach(sel => {{
-    sel.addEventListener("change", async e => {{
+  document.querySelectorAll(".inline-select:not([data-field])").forEach(sel => {{
+    sel.addEventListener("change", async () => {{
       const eid = sel.dataset.eid;
       const threshold = parseInt(sel.value, 10);
       const idx = _devices.findIndex(x => x.entity_id === eid);
@@ -758,10 +866,24 @@ function renderTable() {{
           method: "POST", headers: {{"Content-Type": "application/json"}},
           body: JSON.stringify({{alert_threshold: threshold}}),
         }});
-      }} catch {{ /* non-critical, local state already updated */ }}
+      }} catch {{}}
       const scrollY = window.scrollY;
       renderTable();
       window.scrollTo(0, scrollY);
+    }});
+  }});
+  document.querySelectorAll(".inline-select[data-field='battery_type']").forEach(sel => {{
+    sel.addEventListener("change", async () => {{
+      const eid   = sel.dataset.eid;
+      const btype = sel.value;
+      const idx   = _devices.findIndex(x => x.entity_id === eid);
+      if (idx !== -1) _devices[idx].battery_type = btype;
+      try {{
+        await fetch(BASE + "/api/device/" + encodeURIComponent(eid), {{
+          method: "POST", headers: {{"Content-Type": "application/json"}},
+          body: JSON.stringify({{battery_type: btype}}),
+        }});
+      }} catch {{}}
     }});
   }});
   document.querySelectorAll(".resize-handle").forEach(h => {{
@@ -780,7 +902,7 @@ function renderTable() {{
           method: "POST", headers: {{"Content-Type": "application/json"}},
           body: JSON.stringify({{[field]: cb.checked}}),
         }});
-      }} catch {{ /* non-critical */ }}
+      }} catch {{}}
     }});
   }});
   ["notify_bell", "notify_email", "notify_mobile"].forEach(field => {{
@@ -788,6 +910,75 @@ function renderTable() {{
     if (hdr) hdr.addEventListener("change", () => toggleAll(field, hdr.checked));
   }});
   updateHeaderCheckboxes();
+}}
+
+// ── Type filter & bulk apply ──────────────────────────────────────────
+function renderTypeFilter() {{
+  const sel = document.getElementById("type-filter");
+  if (!sel) return;
+  const cur = sel.value;
+  const types = _settings.battery_types || [];
+  sel.innerHTML = '<option value="">-- Apply Type --</option>' +
+    types.map(t => `<option value="${{t}}"${{cur===t?' selected':''}}>${{t}}</option>`).join('');
+  _typeFilter = sel.value;
+}}
+
+function clearSearch() {{
+  const inp = document.getElementById("device-search");
+  inp.value = '';
+  document.getElementById("search-clear").style.display = 'none';
+  renderTable();
+}}
+
+function setBtypeFilter(val) {{
+  _btypeFilter = val;
+  renderTable();
+}}
+
+async function applyTypeToVisible() {{
+  const query = (document.getElementById("device-search")?.value || '').trim().toLowerCase();
+  const targets = query ? _devices.filter(d => d.name.toLowerCase().includes(query)) : _devices;
+  const type = _typeFilter;
+  if (!type || !targets.length) return;
+  if (!confirm(`Set battery type to "${{type}}" for ${{targets.length}} device${{targets.length !== 1 ? 's' : ''}}?\\n\\nThis will overwrite any existing type.`)) return;
+  await Promise.allSettled(targets.map(async d => {{
+    const idx = _devices.findIndex(x => x.entity_id === d.entity_id);
+    if (idx !== -1) _devices[idx].battery_type = type;
+    await fetch(BASE + "/api/device/" + encodeURIComponent(d.entity_id), {{
+      method: "POST", headers: {{"Content-Type": "application/json"}},
+      body: JSON.stringify({{battery_type: type}}),
+    }});
+  }}));
+  document.getElementById("type-filter").value = '';
+  _typeFilter = '';
+  renderTable();
+}}
+
+async function applyThresholdToVisible() {{
+  const query = (document.getElementById("device-search")?.value || '').trim().toLowerCase();
+  const targets = query ? _devices.filter(d => d.name.toLowerCase().includes(query)) : _devices;
+  const thr = _thresholdApply;
+  if (!thr || !targets.length) return;
+  const label = thr === '-1' ? 'Ignore' : `${{thr}}%`;
+  if (!confirm(`Set alert threshold to "${{label}}" for ${{targets.length}} device${{targets.length !== 1 ? 's' : ''}}?\\n\\nThis will overwrite any existing threshold.`)) return;
+  const thrInt = parseInt(thr, 10);
+  await Promise.allSettled(targets.map(async d => {{
+    const idx = _devices.findIndex(x => x.entity_id === d.entity_id);
+    if (idx !== -1) _devices[idx].alert_threshold = thrInt;
+    await fetch(BASE + "/api/device/" + encodeURIComponent(d.entity_id), {{
+      method: "POST", headers: {{"Content-Type": "application/json"}},
+      body: JSON.stringify({{alert_threshold: thrInt}}),
+    }});
+  }}));
+  document.getElementById("threshold-filter").value = '';
+  _thresholdApply = '';
+  renderTable();
+}}
+
+function toggleCol(col, show) {{
+  _colVisible[col] = show;
+  localStorage.setItem('bs_colVis_v1', JSON.stringify(_colVisible));
+  renderTable();
 }}
 
 // ── Modal ─────────────────────────────────────────────────────────────
@@ -809,7 +1000,7 @@ function openModal(eid) {{
       `<option value="-1"${{thr === -1  ? ' selected' : ''}}>Ignore</option>`;
   }} else {{
     thrEl.innerHTML =
-      [5,10,15,20,25,30].map(n => `<option value="${{n}}"${{thr===n?' selected':''}}>${{n}}%</option>`).join('') +
+      [5,10,15,20,25,30,35,40,45,50,55,60].map(n => `<option value="${{n}}"${{thr===n?' selected':''}}>${{n}}%</option>`).join('') +
       `<option value="-1"${{thr===-1?' selected':''}}>Ignore</option>`;
   }}
 
@@ -1094,7 +1285,23 @@ async function init() {{
       _scripts.map(s => `<option value="${{s.entity_id}}"${{_settings.notify_script === s.entity_id ? ' selected' : ''}}>${{s.name}}</option>`).join('');
 
     renderTypeList();
-    document.getElementById("device-search").addEventListener("input", renderTable);
+    renderTypeFilter();
+    document.getElementById("device-search").addEventListener("input", e => {{
+      document.getElementById("search-clear").style.display = e.target.value ? '' : 'none';
+      renderTable();
+    }});
+    document.getElementById("type-filter").addEventListener("change", e => {{
+      _typeFilter = e.target.value;
+      renderTable();
+    }});
+    document.getElementById("threshold-filter").addEventListener("change", e => {{
+      _thresholdApply = e.target.value;
+      renderTable();
+    }});
+    ['level','btype','alert','notify','script','area'].forEach(col => {{
+      const cb = document.getElementById("col-" + col);
+      if (cb) cb.checked = _colVisible[col] !== false;
+    }});
   }} catch(e) {{
     document.getElementById("content").innerHTML = '<p class="error">Failed to load battery data.</p>';
   }}
