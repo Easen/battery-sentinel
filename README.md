@@ -14,6 +14,14 @@ Monitor and manage every battery-powered device in your Home Assistant installat
 
 ---
 
+## Screenshots
+
+![Devices Page](images/devices-page.png)
+
+![Settings Page](images/settings-page.png)
+
+---
+
 ## Features
 
 ### Device Discovery and Display
