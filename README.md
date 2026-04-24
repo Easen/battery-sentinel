@@ -1,4 +1,4 @@
-# Battery Sentinel - Home Assistant Add-on
+# Battery Sentinel - Home Assistant App / Add-on
 
 Monitor and manage every battery-powered device in your Home Assistant installation. Battery Sentinel provides a dedicated management page accessible from the HA sidebar, with per-device tracking, configurable alerts, email notifications, and a daily battery report.
 
@@ -131,7 +131,7 @@ sequence:
 
 [![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fsmcneece%2Fbattery-sentinel)
 
-> ⚠️ **We are currently unable to confirm this button works on recent HA versions** — it opens the App Store but may not show the pre-filled add repository dialog. We have [filed a bug with Home Assistant](https://github.com/home-assistant/my.home-assistant.io/issues/698). If this button works for you, please let us know in [our issues](https://github.com/smcneece/battery-sentinel/issues). In the meantime, use Option B below.
+> ⚠️ **I'm currently unable to confirm this button works on recent HA versions** — it opens the App Store but may not show the pre-filled add repository dialog. I have [filed a bug with Home Assistant](https://github.com/home-assistant/my.home-assistant.io/issues/698). If this button works for you, please let me know in [issues](https://github.com/smcneece/battery-sentinel/issues). In the meantime, use Option B below.
 
 **Option B — Manual repository add** (works on all installations):
 
