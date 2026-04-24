@@ -110,6 +110,60 @@
   .toolbar-apply { white-space: nowrap; font-size: .82rem; padding: .35rem .75rem; }
   .loading { color: #666; padding: 2rem; text-align: center; }
   .error   { color: #f55; padding: 2rem; text-align: center; }
+
+  /* Mobile responsive design */
+  @media (max-width: 768px) {
+    /* Hide optional columns on tablet using data-col attributes */
+    col[data-col="btype"],
+    col[data-col="notify"],
+    col[data-col="script"],
+    col[data-col="area"],
+    th[data-col="btype"],
+    th[data-col="notify"],
+    th[data-col="script"],
+    th[data-col="area"],
+    td[data-col="btype"],
+    td[data-col="notify"],
+    td[data-col="script"],
+    td[data-col="area"] { display: none; }
+
+    /* Stack toolbar vertically */
+    .device-toolbar { flex-direction: column; align-items: stretch; }
+    #device-search, .toolbar-sel, .toolbar-apply { width: 100%; max-width: 100%; }
+    .toolbar-label { display: none; }
+
+    /* Reduce padding on mobile */
+    th, td { padding: .4rem .5rem; }
+    .header { padding: .75rem; }
+    table { font-size: .8rem; }
+
+    /* Make settings cards stack better */
+    .settings-grid { gap: .75rem; }
+    .settings-card { flex: 1 1 100%; }
+  }
+
+  @media (max-width: 480px) {
+    /* Hide more columns on small phones */
+    col[data-col="alert"],
+    th[data-col="alert"],
+    td[data-col="alert"] { display: none; }
+
+    .header h1 { font-size: 1.1rem; }
+    .header { padding: .5rem; gap: .3rem; }
+
+    th, td { padding: .3rem .4rem; font-size: .75rem; }
+    table { font-size: .75rem; }
+
+    .tabs { padding: 0 .5rem; }
+    .tab-btn { padding: .4rem .6rem; font-size: .8rem; }
+
+    .device-toolbar { padding: .4rem .5rem; }
+    #device-search, .toolbar-sel, .toolbar-apply { font-size: .8rem; padding: .3rem .5rem; }
+
+    .modal-box { width: 95vw; padding: .5rem; }
+    .modal-header { padding: .75rem; }
+    .modal-body { padding: 1rem; gap: .6rem; }
+  }
 </style>
 </head>
 <body>
@@ -542,22 +596,22 @@ function renderTable() {
       return '';
     })();
     return `<tr class="device-row" data-eid="${d.entity_id}"${dim}>
-      <td>${d.name}</td>
-      ${v.level  ? `<td>${levelCell(d)}</td>` : ''}
-      ${v.btype  ? `<td onclick="event.stopPropagation()"><select class="inline-select" data-eid="${d.entity_id}" data-field="battery_type">${typeOptions(d.battery_type||'')}</select></td>` : ''}
-      ${v.alert  ? `<td onclick="event.stopPropagation()"><select class="inline-select" data-eid="${d.entity_id}">${thrCell}</select></td>` : ''}
-      ${v.notify ? `<td onclick="event.stopPropagation()">
+      <td data-col="name">${d.name}</td>
+      ${v.level  ? `<td data-col="level">${levelCell(d)}</td>` : ''}
+      ${v.btype  ? `<td data-col="btype" onclick="event.stopPropagation()"><select class="inline-select" data-eid="${d.entity_id}" data-field="battery_type">${typeOptions(d.battery_type||'')}</select></td>` : ''}
+      ${v.alert  ? `<td data-col="alert" onclick="event.stopPropagation()"><select class="inline-select" data-eid="${d.entity_id}">${thrCell}</select></td>` : ''}
+      ${v.notify ? `<td data-col="notify" onclick="event.stopPropagation()">
         <label class="notify-check"><input type="checkbox" data-eid="${d.entity_id}" data-field="notify_bell" ${d.notify_bell !== false ? 'checked' : ''}> UI</label>
         <label class="notify-check"><input type="checkbox" data-eid="${d.entity_id}" data-field="notify_email" ${d.notify_email !== false ? 'checked' : ''}> Email</label>
         <label class="notify-check"><input type="checkbox" data-eid="${d.entity_id}" data-field="notify_mobile" ${d.notify_mobile ? 'checked' : ''}> Mobile</label>
       </td>` : ''}
-      ${v.script ? `<td>${scriptLabel}</td>` : ''}
-      ${v.area   ? `<td class="muted">${d.area || ''}</td>` : ''}
+      ${v.script ? `<td data-col="script">${scriptLabel}</td>` : ''}
+      ${v.area   ? `<td data-col="area" class="muted">${d.area || ''}</td>` : ''}
     </tr>`;
   }).join('');
 
   const cg = [
-    `<col data-col="name"  style="width:${_colWidths.name}%">`,
+    `<col data-col="name" style="width:${_colWidths.name}%">`,
     v.level  && `<col data-col="level"  style="width:${_colWidths.level}%">`,
     v.btype  && `<col data-col="btype"  style="width:${_colWidths.btype}%">`,
     v.alert  && `<col data-col="alert"  style="width:${_colWidths.alert}%">`,
@@ -566,7 +620,7 @@ function renderTable() {
     v.area   && `<col data-col="area"   style="width:${_colWidths.area}%">`,
   ].filter(Boolean).join('');
 
-  const notifyHdr = v.notify ? `<th onclick="event.stopPropagation()">
+  const notifyHdr = v.notify ? `<th data-col="notify" onclick="event.stopPropagation()">
       <label class="notify-check"><input type="checkbox" id="hdr-notify_bell"> UI</label>
       <label class="notify-check"><input type="checkbox" id="hdr-notify_email"> Email</label>
       <label class="notify-check"><input type="checkbox" id="hdr-notify_mobile"> Mobile</label>
@@ -578,17 +632,17 @@ function renderTable() {
     <thead><tr>
       <th data-col="name" class="${thCls('name')}">Device${arrow('name')}<span class="resize-handle" data-col="name"></span></th>
       ${v.level  ? `<th data-col="level" class="${thCls('level')}">Level${arrow('level')}<span class="resize-handle" data-col="level"></span></th>` : ''}
-      ${v.btype  ? `<th onclick="event.stopPropagation()">Battery Type
+      ${v.btype  ? `<th data-col="btype" onclick="event.stopPropagation()">Battery Type
         <select class="inline-select" style="margin-left:.4rem;font-size:.75rem" onchange="setBtypeFilter(this.value)" onclick="event.stopPropagation()">
-          <option value="">All</option>
+          <option value="">All</option>§
           <option value="__unassigned__"${_btypeFilter==='__unassigned__'?' selected':''}}>Unassigned</option>
           ${types.map(t=>`<option value="${t}"${_btypeFilter===t?' selected':''}}>${t}</option>`).join('')}
         </select>
-        <span class="resize-handle" data-col="btype"></span></th>` : ''}
-      ${v.alert  ? `<th>Alert Threshold<span class="resize-handle" data-col="alert"></span></th>` : ''}
+        <span class="resize-handle"></span></th>` : ''}
+      ${v.alert  ? `<th data-col="alert">Alert Threshold<span class="resize-handle" data-col="alert"></span></th>` : ''}
       ${notifyHdr}
-      ${v.script ? `<th>Script<span class="resize-handle" data-col="script"></span></th>` : ''}
-      ${v.area   ? `<th data-col="area" class="${thCls('area')}">Room${arrow('area')}<span class="resize-handle" data-col="area"></span></th>` : ''}
+      ${v.script ? `<th data-col="script">Script<span class="resize-handle" data-col="script"></span></th>` : ''}
+      ${v.area   ? `<th data-col="area" class="${thCls('area')}">Room${arrow('area')}<span class="resize-handle"></span></th>` : ''}
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
